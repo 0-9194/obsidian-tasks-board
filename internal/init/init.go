@@ -84,6 +84,7 @@ func Run(cwd string, opts Options, w io.Writer) (string, error) {
 		"20 - Projects/Primeiro Projeto.md":             starterProjectMD(opts.Name, "Primeiro Projeto"),
 		"90 - Templates/Template - Projeto.md":          projectTemplateMD(),
 		"README.md":                                     readmeMD(opts.Name),
+		".gitignore":                                   gitignoreContent(),
 	}
 
 	for rel, content := range files {
@@ -312,4 +313,88 @@ otb board --vault /path/to/vault
 - [-]  Cancelado
 `+"```"+`
 `, name)
+}
+
+func gitignoreContent() string {
+	return `# ===================================================================
+# .gitignore para Vaults de Obsidian & Foam
+# ===================================================================
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependências
+node_modules/
+
+# Arquivos de Sistema e temporários
+*~
+.DS_Store
+Thumbs.db
+*.log
+.gemini/
+# Ignorar o restante do diretório .vscode/, por isso o *
+.vscode/*
+# Exceção para .vscode/extensions.json
+!.vscode/extensions.json
+
+# Pasta de lixo do Obsidian
+.trash/
+
+# ===================================================================
+# Arquivos específicos do usuário - NUNCA rastrear
+# ===================================================================
+# Cache, estado do workspace, histórico, etc.
+.obsidian/cache
+.obsidian/workspace.json
+.obsidian/workspaces.json
+.obsidian/workspace-mobile.json
+.obsidian/user.json
+.obsidian/graph.json
+# Ignora index do Plugin Copilot
+.obsidian/copilot-index-*.json
+.copilot-index/
+# Ignora index do Plugin Smart Composer
+.smtcmp_json_db/.initial_migration_completed
+.smtcmp_vector_db.tar.gz
+
+# ===================================================================
+# Arquivos de configuração de Plugins do Obsidian
+# ===================================================================
+# A pasta de plugins da comunidade é ignorada para evitar conflitos
+# de sincronização entre diferentes dispositivos e sistemas.
+# Atualizações de plugins ou mudanças de configuração em um local
+# podem quebrar a instalação em outro.
+#
+# A lista de plugins ativados (.obsidian/community-plugins.json) É
+# rastreada, permitindo que cada ambiente instale as mesmas
+# versões de forma independente e segura.
+#
+# Consulte a documentação em 'docs/estrategia-plugins-obsidian.md'
+# para mais detalhes.
+.obsidian/plugins/
+
+# Arquivos de configuração que podem conter chaves de API ou dados sensíveis.
+obsidian-web-clipper-settings.json
+
+# ===================================================================
+# Arquivos de configuração do Vault - Rastrear por padrão
+# ===================================================================
+# As linhas abaixo estão comentadas porque os arquivos não existem
+# ainda. Descomente se você criar e quiser ignorá-los.
+#
+# .obsidian/hotkeys.json
+# .obsidian/community-plugins.json
+# .obsidian/publish.json
+
+# ===================================================================
+# Específico do Foam (para VS Code)
+# ===================================================================
+.foam/
+
+gha-creds-*.json
+`
 }
