@@ -56,6 +56,12 @@ install: build
 	cp $(BINARY) /usr/local/bin/otb
 	@echo "✓ installed otb to /usr/local/bin/otb"
 
+## install-hooks: install git hooks from scripts/hooks/ into .git/hooks/
+install-hooks:
+	@cp scripts/hooks/pre-push .git/hooks/pre-push
+	@chmod +x .git/hooks/pre-push
+	@echo "✓ pre-push hook installed"
+
 ## mod-tidy: tidy go modules
 mod-tidy:
 	$(GO) mod tidy

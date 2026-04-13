@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# pre-push — mirrors CI (ci.yml) + Security (security.yml) checks before push
+# Runs: go vet, tests (race), build, staticcheck, govulncheck
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+step() { echo -e "\n${CYAN}${BOLD}▶ $1${RESET}"; }
+ok()   { echo -e "${GREEN}✓ $1${RESET}"; }
+warn() { echo -e "${YELLOW}⚠ $1${RESET}"; }
+fail() { echo -e "${RED}✗ $1${RESET}"; exit 1; }
+
+echo -e "${BOLD}╔══════════════════════════════════════════╗${RESET}"
+echo -e "${BOLD}║        pre-push: CI + Security checks    ║${RESET}"
+echo -e "${BOLD}╚══════════════════════════════════════════╝${RESET}"
+
+# ── CI: go vet ────────────────────────────────────────────────────────────────
+step "go vet"
+go vet ./... || fail "go vet failed"
+ok "go vet passed"
+
+# ── CI: tests with race detector ──────────────────────────────────────────────
+step "go test (race detector)"
+go test -race -count=1 -timeout=120s ./... || fail "tests failed"
+ok "tests passed"
+
+# ── CI: build binary ──────────────────────────────────────────────────────────
+step "build binary (linux/amd64)"
+mkdir -p bin
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -trimpath -ldflags="-s -w" -o bin/otb . || fail "build failed"
+ok "build passed ($(du -sh bin/otb | cut -f1))"
+
+# ── Security: staticcheck ─────────────────────────────────────────────────────
+step "staticcheck"
+if which staticcheck > /dev/null 2>&1; then
+  staticcheck ./... || fail "staticcheck failed"
+  ok "staticcheck passed"
+else
+  warn "staticcheck not found — skipping (install: go install honnef.co/go/tools/cmd/staticcheck@latest)"
+fi
+
+# ── Security: govulncheck ─────────────────────────────────────────────────────
+step "govulncheck"
+if which govulncheck > /dev/null 2>&1; then
+  govulncheck ./... || fail "govulncheck found vulnerabilities"
+  ok "govulncheck passed"
+else
+  warn "govulncheck not found — skipping (install: go install golang.org/x/vuln/cmd/govulncheck@latest)"
+fi
+
+echo -e "\n${GREEN}${BOLD}✓ All checks passed — push allowed${RESET}\n"
