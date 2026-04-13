@@ -59,6 +59,19 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGELOG_RELEASE.md
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -74,4 +87,4 @@ jobs:
             otb-linux-amd64
             otb-linux-arm64
             checksums.sha256
-          generate_release_notes: true
+          body_path: CHANGELOG_RELEASE.md
