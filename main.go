@@ -16,7 +16,7 @@ import (
 	"github.com/pot-labs/otb/cmd"
 )
 
-var version = "0.1.1"
+var version = "dev"
 
 func main() {
 	args := os.Args[1:]
