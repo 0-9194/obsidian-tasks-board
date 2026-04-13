@@ -1,0 +1,20 @@
+# Build artifacts
+bin/
+
+# Go test cache
+testdata/fuzz/*/
+
+# Test results (Docker output)
+test-results/
+
+# Node
+node_modules/
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# pi-lens internal state
+.pi-lens/
