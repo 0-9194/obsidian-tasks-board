@@ -1,0 +1,92 @@
+# Dockerfile.test — Build and run all test suites for the otb binary
+#
+# Security posture:
+#   - Runs as non-root user (uid 1000)
+#   - No capabilities beyond default
+#   - Read-only filesystem for /app source (writable: /results, /tmp, Go build cache)
+#   - CGO_ENABLED=0 — fully static binary, no libc
+#   - No network access needed after build (use --network=none at runtime)
+#
+# Usage:
+#   docker build -f Dockerfile.test -t otb-tests .
+#
+#   # Unit tests (default)
+#   docker run --rm -v $(pwd)/test-results:/results otb-tests
+#
+#   # Fuzz for 60s per target
+#   docker run --rm -e TEST_MODE=fuzz -e FUZZ_SECONDS=60 -v $(pwd)/test-results:/results otb-tests
+#
+#   # Security black-box tests
+#   docker run --rm -e TEST_MODE=security -v $(pwd)/test-results:/results otb-tests
+#
+#   # All (unit + security)
+#   docker run --rm -e TEST_MODE=all -v $(pwd)/test-results:/results otb-tests
+#
+#   # Full suite (fuzz + security)
+#   docker run --rm -e TEST_MODE=fuzz+security -e FUZZ_SECONDS=30 -v $(pwd)/test-results:/results otb-tests
+
+# ── Stage 1: download dependencies ───────────────────────────────────────────
+FROM golang:1.23-alpine AS deps
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+# ── Stage 2: build binary + test binaries ────────────────────────────────────
+FROM deps AS builder
+
+COPY . .
+
+# Build the production binary (static, no CGO, no debug info)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags="-s -w" \
+    -o bin/otb .
+
+# Pre-compile all test packages to catch compile errors at image build time
+# (we don't run tests here — just verify they compile)
+RUN go test -run='^$' \
+    ./internal/parser/... \
+    ./internal/reader/... \
+    ./internal/sanitize/... \
+    ./internal/vault/... \
+    ./internal/writer/... \
+    ./internal/security/...
+
+# ── Stage 3: minimal test runner image ───────────────────────────────────────
+FROM golang:1.23-alpine AS test
+
+# Install only what's needed for test execution
+RUN apk add --no-cache ca-certificates tzdata
+
+# Create non-root user
+RUN addgroup -g 1000 otb && adduser -u 1000 -G otb -s /bin/sh -D otb
+
+WORKDIR /app
+
+# Copy source + compiled artifacts from builder
+COPY --from=builder /app /app
+COPY --from=builder /root/go/pkg/mod /root/go/pkg/mod
+
+# Copy the Go toolchain (go binary is in the golang base image)
+# The golang:1.23-alpine image already has go at /usr/local/go/bin/go
+
+# Results directory (mounted volume at runtime)
+RUN mkdir -p /results && chown otb:otb /results
+
+# Entrypoint script
+RUN chmod +x /app/tests/entrypoint.sh
+
+# Drop to non-root
+USER otb
+
+# Environment defaults
+ENV TEST_MODE=unit \
+    FUZZ_SECONDS=30 \
+    TEST_TIMEOUT=120 \
+    CGO_ENABLED=0 \
+    GOFLAGS="" \
+    OTB_BINARY=/app/bin/otb
+
+VOLUME ["/results"]
+
+ENTRYPOINT ["/app/tests/entrypoint.sh"]
