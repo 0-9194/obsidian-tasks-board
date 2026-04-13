@@ -8,6 +8,7 @@
 | `Shift+Tab` / `←` | Coluna anterior |
 | `↑` | Mover seleção para cima |
 | `↓` | Mover seleção para baixo |
+| `Enter` | Abrir painel de detalhe (contexto do arquivo fonte) |
 
 ## Ações sobre tarefas
 

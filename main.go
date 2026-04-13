@@ -118,6 +118,7 @@ KEYBINDINGS (board):
   Tab / →           Next column
   Shift+Tab / ←     Previous column
   ↑ / ↓             Navigate tasks
+  Enter             Open detail view (context from source file)
   i / t / d / x     Move task to In Progress / Todo / Done / Cancelled
   c                 Add comment
   /                 Text filter

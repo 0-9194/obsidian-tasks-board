@@ -29,11 +29,13 @@ Permitir que o usuário altere o status de uma tarefa diretamente na TUI (ex.: `
 
 ---
 
-### 2. Detalhe da tarefa (visualização do Markdown)
+### ✅ 2. Detalhe da tarefa (visualização do Markdown) — `v0.1.2`
 
 Comando para abrir o contexto completo de uma tarefa — lê o arquivo Markdown de origem e renderiza o conteúdo na TUI.
 
-- Atalho para abrir painel de detalhe (ex.: `Enter` ou `d`)
-- Leitura e renderização do Markdown do arquivo fonte
-- Exibição do trecho ao redor da tarefa selecionada
-- Navegação de volta ao board sem perder posição
+- ✅ `Enter` abre painel de detalhe da tarefa selecionada (`modeDetail`)
+- ✅ Leitura do arquivo fonte e exibição de ±8 linhas de contexto ao redor da tarefa
+- ✅ Linha da tarefa destacada com `▶` e numeração de linhas
+- ✅ Scroll com `↑↓` / `j/k` e indicador de percentual
+- ✅ Metadados completos: arquivo, linha, tipo, refs, status, comentários
+- ✅ `Esc` / `q` / `Enter` voltam ao board sem perder posição

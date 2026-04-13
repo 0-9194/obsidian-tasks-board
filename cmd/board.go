@@ -63,6 +63,7 @@ const (
 	modeConfirm
 	modeComment
 	modeProjectSelect
+	modeDetail
 )
 
 type statusMsg struct {
@@ -86,6 +87,8 @@ type boardModel struct {
 	status        *statusMsg
 	err           error
 	width         int
+	detailLines   []string // context lines loaded for modeDetail
+	detailScroll  int      // first visible line in detail view
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -248,6 +251,8 @@ func (m boardModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleComment(msg)
 	case modeProjectSelect:
 		return m.handleProjectSelect(msg)
+	case modeDetail:
+		return m.handleDetail(msg)
 	}
 	return m.handleNormal(msg)
 }
@@ -314,6 +319,13 @@ func (m boardModel) handleNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.startMove(parser.StatusDone)
 	case "x":
 		return m.startMove(parser.StatusCancelled)
+
+	case "enter":
+		if task := m.selectedTask(); task != nil {
+			m.detailLines = loadDetailContext(m.vaultPath, task, m.width)
+			m.detailScroll = 0
+			m.mode = modeDetail
+		}
 
 	case "c":
 		if m.selectedTask() != nil {
@@ -384,6 +396,80 @@ func (m boardModel) handleComment(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleDetail handles key events in the detail (context viewer) mode.
+func (m boardModel) handleDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "q", "enter":
+		m.mode = modeNormal
+	case "up", "k":
+		if m.detailScroll > 0 {
+			m.detailScroll--
+		}
+	case "down", "j":
+		visible := m.detailViewHeight()
+		if m.detailScroll+visible < len(m.detailLines) {
+			m.detailScroll++
+		}
+	}
+	return m, nil
+}
+
+// detailViewHeight returns the number of lines available in the detail panel.
+func (m boardModel) detailViewHeight() int {
+	h := 20
+	if m.width > 0 {
+		h = 24
+	}
+	return h
+}
+
+// loadDetailContext reads the source file and builds a slice of display lines
+// centred on the task line, with context lines above and below.
+// Each line is prefixed with its line number and a ▶ marker on the task line.
+func loadDetailContext(vaultPath string, task *parser.Task, termWidth int) []string {
+	const contextLines = 8
+
+	filePath := filepath.Join(vaultPath, task.SourceFile)
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return []string{fmt.Sprintf("  erro ao ler arquivo: %v", err)}
+	}
+
+	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
+	target := task.LineNumber - 1 // 0-indexed
+
+	start := target - contextLines
+	if start < 0 {
+		start = 0
+	}
+	end := target + contextLines + 1
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	availW := termWidth - 8 // reserve space for line-number prefix
+	if availW < 20 {
+		availW = 20
+	}
+
+	out := make([]string, 0, end-start)
+	for i := start; i < end; i++ {
+		lineNum := i + 1
+		raw := lines[i]
+		runes := []rune(raw)
+		if len(runes) > availW {
+			raw = string(runes[:availW-1]) + "…"
+		}
+		prefix := fmt.Sprintf(" %4d ", lineNum)
+		if i == target {
+			out = append(out, styleCyan.Render(prefix+"▶ ")+styleBold.Render(raw))
+		} else {
+			out = append(out, styleDim.Render(prefix+"  ")+raw)
+		}
+	}
+	return out
+}
+
 func (m boardModel) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
@@ -445,6 +531,8 @@ func (m boardModel) View() string {
 		return m.viewProjectSelect(w)
 	case modeConfirm:
 		return m.viewConfirm(w)
+	case modeDetail:
+		return m.viewDetail(w)
 	}
 
 	var sb strings.Builder
@@ -545,6 +633,7 @@ func (m boardModel) View() string {
 		sb.WriteString(
 			styleDim.Render("  ←→: lane") +
 				styleDim.Render("  ↑↓: item") +
+				styleDim.Render("  Enter: detalhe") +
 				styleDim.Render("  i/t/d/x: mover") +
 				styleDim.Render("  c: comentar") +
 				styleDim.Render("  /: busca") +
@@ -704,6 +793,92 @@ func (m boardModel) viewLane(col column, colIndex int, w int) string {
 	}
 
 	return strings.Join(laneLines, "\n")
+}
+
+// viewDetail renders the full-screen detail panel for the selected task.
+func (m boardModel) viewDetail(w int) string {
+	task := m.selectedTask()
+	if task == nil {
+		m.mode = modeNormal
+		return ""
+	}
+
+	hr := styleDim.Render(strings.Repeat("─", w))
+	var sb strings.Builder
+
+	// Header
+	sb.WriteString(hr + "\n")
+	title := task.Text
+	if len([]rune(title)) > w-10 {
+		title = string([]rune(title)[:w-11]) + "…"
+	}
+	sb.WriteString(styleBold.Render(styleCyan.Render("  📄 ")) + styleBold.Render(title) + "\n")
+	sb.WriteString(hr + "\n")
+
+	// Metadata
+	sb.WriteString(styleDim.Render("  arquivo : ") + fmt.Sprintf("%s:%d", task.SourceFile, task.LineNumber) + "\n")
+	if task.Type != "" {
+		sb.WriteString(styleDim.Render("  tipo    : ") + task.Type + "\n")
+	}
+	if task.Refs != "" {
+		sb.WriteString(styleDim.Render("  refs    : ") + styleCyan.Render(task.Refs) + "\n")
+	}
+	statusLabel := map[parser.TaskStatus]string{
+		parser.StatusTodo:       styleRed.Render("○ A Fazer"),
+		parser.StatusInProgress: styleYellow.Render("◐ Em Progresso"),
+		parser.StatusDone:       styleGreen.Render("● Concluído"),
+		parser.StatusCancelled:  styleDim.Render("✕ Cancelado"),
+	}
+	if label, ok := statusLabel[task.Status]; ok {
+		sb.WriteString(styleDim.Render("  status  : ") + label + "\n")
+	}
+
+	// Comments
+	if len(task.Comments) > 0 {
+		sb.WriteString(styleDim.Render(fmt.Sprintf("  comentários (%d):\n", len(task.Comments))))
+		for _, c := range task.Comments {
+			parts := strings.SplitN(c.Text, " — ", 2)
+			ts := parts[0]
+			body := ""
+			if len(parts) > 1 {
+				body = parts[1]
+			}
+			sb.WriteString(styleDim.Render("    · ") + styleDim.Render(ts))
+			if body != "" {
+				sb.WriteString(styleDim.Render(" — ") + body)
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	// Context from source file
+	sb.WriteString(hr + "\n")
+	sb.WriteString(styleDim.Render("  Contexto no arquivo:\n\n"))
+
+	visible := m.detailViewHeight()
+	lines := m.detailLines
+	end := m.detailScroll + visible
+	if end > len(lines) {
+		end = len(lines)
+	}
+	for _, l := range lines[m.detailScroll:end] {
+		sb.WriteString(l + "\n")
+	}
+
+	// Scroll indicator
+	if len(lines) > visible {
+		pct := 0
+		if len(lines)-visible > 0 {
+			pct = m.detailScroll * 100 / (len(lines) - visible)
+		}
+		sb.WriteString(styleDim.Render(fmt.Sprintf("\n  [%d%%] ↑↓/j/k: rolar", pct)) + "\n")
+	}
+
+	sb.WriteString(hr + "\n")
+	sb.WriteString(styleDim.Render("  Esc/q/Enter: voltar ao board") + "\n")
+	sb.WriteString(hr + "\n")
+
+	return sb.String()
 }
 
 func (m boardModel) viewConfirm(w int) string {
