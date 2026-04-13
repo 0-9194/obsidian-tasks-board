@@ -1,0 +1,20 @@
+# docker-compose.yml — obsidian-tasks-board
+#
+# Variáveis de ambiente:
+#   VAULT_PATH  — Caminho absoluto ao vault Obsidian (padrão: ./vault)
+#
+# Uso:
+#   docker compose run --rm board                    # abre o board
+#   docker compose run --rm board board --project X  # filtra por projeto
+#   docker compose run --rm board init --name "Meu Vault" --dir /vault
+
+services:
+  board:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: obsidian-tasks-board:latest
+    stdin_open: true
+    tty: true
+    volumes:
+      - ${VAULT_PATH:-./vault}:/vault
