@@ -432,7 +432,7 @@ func (m boardModel) handleProjectSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// ── View ──────────────────────────────────────────────────────────────────────
+// ── View ────────────────────────────────────────────────────────────────────
 
 func (m boardModel) View() string {
 	w := m.width
@@ -482,77 +482,13 @@ func (m boardModel) View() string {
 
 	sb.WriteString(hr + "\n")
 
-	// Column tabs
-	var tabs []string
-	for i, col := range columns {
-		count := len(m.filteredTasks(col.id))
-		total := len(m.data.ByStatus[col.id])
-		countStr := fmt.Sprintf("%d", count)
-		if m.hasFilter() {
-			countStr = fmt.Sprintf("%d/%d", count, total)
-		}
-		label := fmt.Sprintf("%s %s (%s)", col.icon, col.label, countStr)
-		if i == m.colIdx {
-			tabs = append(tabs, styleBold.Render(styleCyan.Render(fmt.Sprintf(" ▶ %s ", label))))
-		} else {
-			tabs = append(tabs, styleDim.Render(fmt.Sprintf("   %s  ", label)))
-		}
-	}
-	sb.WriteString(strings.Join(tabs, styleDim.Render("│")) + "\n")
-	sb.WriteString(hr + "\n")
-
-	// Task list
-	tasks := m.currentTasks()
-	if len(tasks) == 0 {
-		if m.hasFilter() {
-			sb.WriteString(styleDim.Render("  Nenhuma tarefa corresponde ao filtro.") + "\n")
-		} else {
-			sb.WriteString(styleDim.Render("  Nenhuma tarefa nesta coluna.") + "\n")
-		}
-	} else {
-		start := m.taskIdx - maxVisible + 1
-		if start < 0 {
-			start = 0
-		}
-		end := start + maxVisible
-		if end > len(tasks) {
-			end = len(tasks)
-		}
-		for i := start; i < end; i++ {
-			t := tasks[i]
-			isSel := i == m.taskIdx
-			cursor := " "
-			if isSel {
-				cursor = styleCyan.Render("▶")
-			}
-			icon := taskIcon(t.Status, isSel)
-			tag := ""
-			if t.Type != "" {
-				tag = styleDim.Render(fmt.Sprintf(" [%s]", t.Type))
-			}
-			cmtBadge := ""
-			if len(t.Comments) > 0 {
-				cmtBadge = styleDim.Render(fmt.Sprintf(" 💬%d", len(t.Comments)))
-			}
-			text := t.Text
-			if isSel {
-				text = styleSelected.Render(text)
-			}
-			line := fmt.Sprintf(" %s %s %s%s%s", cursor, icon, text, tag, cmtBadge)
-			if len([]rune(line)) > w {
-				runes := []rune(line)
-				line = string(runes[:w-1]) + "…"
-			}
-			sb.WriteString(line + "\n")
-		}
-		if len(tasks) > maxVisible {
-			sb.WriteString(styleDim.Render(fmt.Sprintf("    … %d mais", len(tasks)-maxVisible)) + "\n")
-		}
-	}
+	// Kanban lanes
+	sb.WriteString(m.viewLanes(w) + "\n")
 
 	// Detail panel
+	dothrLine := dothr + "\n"
 	if sel := m.selectedTask(); sel != nil {
-		sb.WriteString(dothr + "\n")
+		sb.WriteString(dothrLine)
 		sb.WriteString(styleDim.Render("  origem     : ") + fmt.Sprintf("%s:%d", sel.SourceFile, sel.LineNumber) + "\n")
 		if sel.Type != "" {
 			sb.WriteString(styleDim.Render("  tipo       : ") + sel.Type + "\n")
@@ -569,11 +505,11 @@ func (m boardModel) View() string {
 				sb.WriteString(styleDim.Render(fmt.Sprintf("    … %d anterior(es) omitido(s)\n", omitted)))
 			}
 			for _, c := range cmts {
-				parts := strings.SplitN(c.Text, " — ", 2)
-				ts := parts[0]
+				cparts := strings.SplitN(c.Text, " — ", 2)
+				ts := cparts[0]
 				body := ""
-				if len(parts) > 1 {
-					body = parts[1]
+				if len(cparts) > 1 {
+					body = cparts[1]
 				}
 				sb.WriteString(styleDim.Render("    · ") + styleDim.Render(ts))
 				if body != "" {
@@ -586,14 +522,14 @@ func (m boardModel) View() string {
 
 	// Comment input
 	if m.mode == modeComment {
-		sb.WriteString(dothr + "\n")
+		sb.WriteString(dothrLine)
 		sb.WriteString(styleYellow.Render("  💬 Comentário: ") + m.commentDraft + styleCyan.Render("▌") + "\n")
 		sb.WriteString(styleDim.Render("  Enter: confirmar  Esc: cancelar") + "\n")
 	}
 
 	// Status message
 	if m.status != nil {
-		sb.WriteString(dothr + "\n")
+		sb.WriteString(dothrLine)
 		if m.status.ok {
 			sb.WriteString(styleGreen.Render("  ✓ "+m.status.text) + "\n")
 		} else {
@@ -607,7 +543,7 @@ func (m boardModel) View() string {
 		sb.WriteString(styleDim.Render("  Digite para filtrar  Enter: confirmar  Esc: cancelar") + "\n")
 	} else {
 		sb.WriteString(
-			styleDim.Render("  Tab/←→: col") +
+			styleDim.Render("  ←→: lane") +
 				styleDim.Render("  ↑↓: item") +
 				styleDim.Render("  i/t/d/x: mover") +
 				styleDim.Render("  c: comentar") +
@@ -621,6 +557,153 @@ func (m boardModel) View() string {
 	sb.WriteString(hr + "\n")
 
 	return sb.String()
+}
+
+// viewLanes renders all four kanban columns side-by-side.
+func (m boardModel) viewLanes(totalWidth int) string {
+	const sep = "│"
+	numCols := len(columns)
+	// each lane gets equal share; separator costs 1 char each (numCols-1 separators)
+	laneW := (totalWidth - (numCols - 1)) / numCols
+	if laneW < 10 {
+		laneW = 10
+	}
+
+	laneStrs := make([]string, numCols)
+	for i, col := range columns {
+		laneStrs[i] = m.viewLane(col, i, laneW)
+	}
+
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		interleave(laneStrs, styleDim.Render(sep))...,
+	)
+}
+
+// interleave inserts sep between each element of strs.
+func interleave(strs []string, sep string) []string {
+	if len(strs) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(strs)*2-1)
+	for i, s := range strs {
+		out = append(out, s)
+		if i < len(strs)-1 {
+			out = append(out, sep)
+		}
+	}
+	return out
+}
+
+// viewLane renders a single kanban lane.
+func (m boardModel) viewLane(col column, colIndex int, w int) string {
+	isActive := colIndex == m.colIdx
+	tasks := m.filteredTasks(col.id)
+	total := len(m.data.ByStatus[col.id])
+
+	// Header
+	countStr := fmt.Sprintf("%d", len(tasks))
+	if m.hasFilter() {
+		countStr = fmt.Sprintf("%d/%d", len(tasks), total)
+	}
+	headerText := fmt.Sprintf("%s %s (%s)", col.icon, col.label, countStr)
+	var header string
+	if isActive {
+		header = styleBold.Render(styleCyan.Render(headerText))
+	} else {
+		header = styleDim.Render(headerText)
+	}
+	// pad/trim header to lane width
+	hW := lipgloss.Width(header)
+	if hW < w {
+		header += strings.Repeat(" ", w-hW)
+	}
+
+	var laneLines []string
+	laneLines = append(laneLines, header)
+
+	// divider under header
+	if isActive {
+		laneLines = append(laneLines, styleCyan.Render(strings.Repeat("─", w)))
+	} else {
+		laneLines = append(laneLines, styleDim.Render(strings.Repeat("─", w)))
+	}
+
+	// Task rows
+	if len(tasks) == 0 {
+		empty := styleDim.Render("  (vazio)")
+		eW := lipgloss.Width(empty)
+		if eW < w {
+			empty += strings.Repeat(" ", w-eW)
+		}
+		laneLines = append(laneLines, empty)
+	} else {
+		start := 0
+		if isActive {
+			start = m.taskIdx - maxVisible + 1
+			if start < 0 {
+				start = 0
+			}
+		}
+		end := start + maxVisible
+		if end > len(tasks) {
+			end = len(tasks)
+		}
+		for i := start; i < end; i++ {
+			t := tasks[i]
+			isSel := isActive && i == m.taskIdx
+			cursor := " "
+			if isSel {
+				cursor = styleCyan.Render("▶")
+			}
+			icon := taskIcon(t.Status, isSel)
+			tag := ""
+			if t.Type != "" {
+				tag = styleDim.Render(fmt.Sprintf("[%s]", t.Type))
+			}
+			cmtBadge := ""
+			if len(t.Comments) > 0 {
+				cmtBadge = styleDim.Render(fmt.Sprintf("💬%d", len(t.Comments)))
+			}
+			// suffix: tag + cmtBadge (plain width, no color codes for measuring)
+			suffix := ""
+			if tag != "" {
+				suffix += " " + tag
+			}
+			if cmtBadge != "" {
+				suffix += " " + cmtBadge
+			}
+			// available width for text: w - cursor(1) - space(1) - icon(1) - space(1) - suffix
+			suffixW := lipgloss.Width(suffix)
+			textBudget := w - 4 - suffixW
+			if textBudget < 1 {
+				textBudget = 1
+			}
+			text := t.Text
+			textRunes := []rune(text)
+			if len(textRunes) > textBudget {
+				text = string(textRunes[:textBudget-1]) + "…"
+			} else {
+				// pad to fill lane width
+				text += strings.Repeat(" ", textBudget-len([]rune(text)))
+			}
+			if isSel {
+				text = styleSelected.Render(text)
+			}
+			line := fmt.Sprintf("%s %s %s%s", cursor, icon, text, suffix)
+			laneLines = append(laneLines, line)
+		}
+		if len(tasks) > maxVisible {
+			more := styleDim.Render(fmt.Sprintf("  … %d mais", len(tasks)-maxVisible))
+			mW := lipgloss.Width(more)
+			if mW < w {
+				more += strings.Repeat(" ", w-mW)
+			}
+			laneLines = append(laneLines, more)
+		}
+	}
+
+	return strings.Join(laneLines, "\n")
 }
 
 func (m boardModel) viewConfirm(w int) string {
