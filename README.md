@@ -71,6 +71,57 @@ docker build -t otb .                              # imagem de uso
 
 ---
 
+## Desenvolvimento local
+
+### Configuração inicial do repositório
+
+Após clonar, instale os git hooks para que as validações de CI e segurança rodem automaticamente antes de cada `git push`:
+
+```bash
+make install-hooks
+```
+
+Isso copia `scripts/hooks/pre-push` para `.git/hooks/pre-push`.
+
+> **Por que?** O hook espelha exatamente os workflows `ci.yml` e `security.yml` do GitHub Actions, prevenindo que código quebrado chegue ao remoto.
+
+### Ferramentas opcionais (recomendadas)
+
+Instale `staticcheck` e `govulncheck` para que o hook também rode os checks de segurança:
+
+```bash
+go install honnef.co/go/tools/cmd/staticcheck@latest
+go install golang.org/x/vuln/cmd/govulncheck@latest
+```
+
+Se não estiverem presentes, o hook emite um aviso mas não bloqueia o push.
+
+### O que o hook valida
+
+Cada `git push` executa os seguintes passos em ordem:
+
+| Step | Equivalente no CI |
+|------|-------------------|
+| `go vet ./...` | `ci.yml` + `security.yml` |
+| `go test -race -count=1 -timeout=120s ./...` | `ci.yml` |
+| `build` linux/amd64 (`CGO_ENABLED=0`) | `ci.yml` |
+| `staticcheck ./...` | `security.yml` |
+| `govulncheck ./...` | `security.yml` |
+
+Se qualquer step falhar, o push é **abortado** com uma mensagem de erro indicando qual verificação falhou.
+
+Para rodar as mesmas verificações manualmente a qualquer momento:
+
+```bash
+make vet      # go vet
+make test     # testes com race detector
+make build    # compilação estática
+make lint     # staticcheck
+make security # govulncheck
+```
+
+---
+
 ## Início rápido
 
 ```bash
