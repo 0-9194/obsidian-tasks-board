@@ -4,6 +4,19 @@ Funcionalidades planejadas para versões futuras.
 
 ---
 
+## ✅ Concluído
+
+### 3. Board com lanes visuais (ao invés de tabs) — `v0.1.1`
+
+Substituir (ou complementar) a navegação por abas com uma representação kanban de colunas visíveis simultaneamente na tela.
+
+- ✅ Layout horizontal com lanes: **A Fazer | Em Progresso | Concluído | Cancelado**
+- ✅ Navegação entre lanes com `←` / `→`
+- ✅ Redimensionamento automático das colunas conforme o terminal
+- ✅ Compatível com o filtro por projeto já existente
+
+---
+
 ## 🔜 Próximas features
 
 ### 1. Troca de estado das tarefas
@@ -24,14 +37,3 @@ Comando para abrir o contexto completo de uma tarefa — lê o arquivo Markdown 
 - Leitura e renderização do Markdown do arquivo fonte
 - Exibição do trecho ao redor da tarefa selecionada
 - Navegação de volta ao board sem perder posição
-
----
-
-### 3. Board com lanes visuais (ao invés de tabs)
-
-Substituir (ou complementar) a navegação por abas com uma representação kanban de colunas visíveis simultaneamente na tela.
-
-- Layout horizontal com lanes: **A Fazer | Em Progresso | Concluído | Cancelado**
-- Navegação entre lanes com `←` / `→`
-- Redimensionamento automático das colunas conforme o terminal
-- Compatível com o filtro por projeto já existente
