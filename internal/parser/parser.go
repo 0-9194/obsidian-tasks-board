@@ -32,6 +32,7 @@ const (
 	StatusInProgress TaskStatus = "in_progress"
 	StatusDone       TaskStatus = "done"
 	StatusCancelled  TaskStatus = "cancelled"
+	StatusBacklog    TaskStatus = "backlog"
 )
 
 // TaskComment is a single comment line attached to a task.
@@ -76,6 +77,8 @@ func toStatus(ch string) TaskStatus {
 		return StatusDone
 	case "-":
 		return StatusCancelled
+	case "b":
+		return StatusBacklog
 	default:
 		return StatusTodo
 	}

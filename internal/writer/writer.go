@@ -33,6 +33,7 @@ var statusToChar = map[parser.TaskStatus]string{
 	parser.StatusInProgress: "/",
 	parser.StatusDone:       "x",
 	parser.StatusCancelled:  "-",
+	parser.StatusBacklog:    "b",
 }
 
 var reCheckbox = regexp.MustCompile(`^(\s*[-*]\s+\[)[^\]]*(\].*)$`)

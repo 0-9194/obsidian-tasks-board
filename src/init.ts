@@ -131,6 +131,16 @@ category: board
 > (path includes 20 - Projects) OR (path includes docs)
 > group by filename
 > \`\`\`
+
+> [!note]+ 🗃️ Backlog
+>
+> \`\`\`tasks
+> not done
+> filter by function task.status.symbol === 'b'
+> (path includes 20 - Projects) OR (path includes docs)
+> group by filename
+> sort by priority
+> \`\`\`
 `;
 }
 
@@ -185,11 +195,23 @@ _Links para ADRs, recursos ou dependências relevantes._
 > sort by done date reverse
 > \`\`\`
 
+> [!note]- 🗃️ Backlog
+> \`\`\`tasks
+> not done
+> filter by function task.status.symbol === 'b'
+> path includes 20 - Projects/{{title}}
+> sort by priority
+> \`\`\`
+
 ---
 
 ## 📝 Tarefas
 
 _Sintaxe: \`- [ ] Descrição [type:: técnico|estratégico] [refs:: PR#N, commit:hash]\`_
+
+### 🗃️ Backlog
+
+- [b] 
 
 ### A Fazer
 
@@ -299,6 +321,7 @@ docker run -it --rm -v \$(pwd):/vault pot-labs/otb
 - [/]  Em progresso
 - [x]  Concluído
 - [-]  Cancelado
+- [b]  Backlog
 \`\`\`
 
 Campos inline suportados pelo board:

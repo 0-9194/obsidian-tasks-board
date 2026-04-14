@@ -101,6 +101,7 @@ export async function readBoardData(
       in_progress: allTasks.filter((t) => t.status === "in_progress"),
       done:        allTasks.filter((t) => t.status === "done"),
       cancelled:   allTasks.filter((t) => t.status === "cancelled"),
+      backlog:     allTasks.filter((t) => t.status === "backlog"),
     },
   };
 }

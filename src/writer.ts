@@ -17,7 +17,7 @@ import { randomBytes } from "node:crypto";
 import type { Task, TaskStatus } from "./parser.ts";
 
 const STATUS_TO_CHAR: Record<TaskStatus, string> = {
-  todo: " ", in_progress: "/", done: "x", cancelled: "-",
+  todo: " ", in_progress: "/", done: "x", cancelled: "-", backlog: "b",
 };
 
 function normalizeLine(raw: string): string {

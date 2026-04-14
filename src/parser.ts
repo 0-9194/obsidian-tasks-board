@@ -10,7 +10,7 @@ import { sanitizeForDisplay } from "./sanitize.ts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
+export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled" | "backlog";
 
 export interface TaskComment {
   text: string;
@@ -42,6 +42,7 @@ function toStatus(checkChar: string): TaskStatus {
     case "x":
     case "X": return "done";
     case "-": return "cancelled";
+    case "b": return "backlog";
     default:  return "todo";
   }
 }
