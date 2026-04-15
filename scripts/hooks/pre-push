@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Ensure Go is on PATH
+export PATH="$HOME/go/bin:/usr/local/go/bin:$PATH"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
