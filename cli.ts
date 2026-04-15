@@ -55,9 +55,10 @@ const COLUMNS: Column[] = [
   { id: "in_progress", label: "Em Progresso", icon: "◐" },
   { id: "done",        label: "Concluído",    icon: "●" },
   { id: "cancelled",   label: "Cancelado",    icon: "✕" },
+  { id: "backlog",     label: "Backlog",      icon: "◌" },
 ];
 const MOVE_KEYS: Record<string, TaskStatus> = {
-  i: "in_progress", t: "todo", d: "done", x: "cancelled",
+  i: "in_progress", t: "todo", d: "done", x: "cancelled", b: "backlog",
 };
 const MAX_TASKS = 12;
 
@@ -175,7 +176,7 @@ function render(): void {
     lines.push(dim("  Digite para filtrar") + dim("  Enter: confirmar") + dim("  Esc: cancelar"));
   } else {
     lines.push(
-      dim("  Tab/←→: col") + dim("  ↑↓: item") + dim("  i/t/d/x: mover") +
+      dim("  Tab/←→: col") + dim("  ↑↓: item") + dim("  i/t/d/x/b: mover") +
       dim("  c: comentar") + dim("  /: busca") + dim("  p: projeto") +
       dim("  F: limpar") + dim("  r: reload") + dim("  q: sair"),
     );
@@ -191,6 +192,7 @@ function statusIconStr(status: TaskStatus, selected: boolean): string {
     case "in_progress": return c(A.yellow, "◐");
     case "done":        return c(A.green, "●");
     case "cancelled":   return c(A.red, "✕");
+    case "backlog":     return selected ? c(A.cyan, "◌") : dim("◌");
   }
 }
 
